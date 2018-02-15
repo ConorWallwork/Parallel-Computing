@@ -22,24 +22,32 @@ __global__ void cumulative_sum(int *a, int *b) {
     }
     
     if(threadIdx.x == 0) {
-	//printf("block dim is %d\n", blockDim.x);
         b[blockIdx.x] = a[start_address + 2*blockDim.x-1];
-	printf("%d\n", b[blockIdx.x]);
     }
 
 }
 
 __global__ void fix_sum(int *a, int *b, int size_per_block) {
     int id = threadIdx.x + blockDim.x * blockIdx.x;
-    if(id > size_per_block) {
-        a[id] = a[id] + b[blockIdx.x - 1];
-    }
-    
+    if(id > size_per_block/2 - 1) {
+      a[id*2] += b[blockIdx.x - 1];
+			a[id*2+1] += b[blockIdx.x - 1];
+		}			
 }
+
+__global__ void sum_subtotals(int *b, int num_blocks) {
+	for(int i = 1; i < num_blocks; i++)
+	{
+		b[i] += b[i-1];
+	}
+}
+ 
+//printf("%d ", a[id]);
+  
 
 int main() {
     
-    int SIZE = 32;
+    int SIZE = 128;
 	int *device_input;
 	int *device_output;
 	int *host_input = (int *) malloc(SIZE * sizeof(int));
@@ -63,6 +71,8 @@ int main() {
 
 	gstart();
 	cumulative_sum<<<num_blocks, threads_per_block>>>(device_input, device_output);
+	sum_subtotals<<<1,1>>>(device_output, num_blocks);
+	fix_sum<<<num_blocks, threads_per_block>>>(device_input, device_output, size_per_block);
 
 	cudaMemcpy(host_output, device_input, SIZE * sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy(host_output_b, device_output, num_blocks * sizeof(int), cudaMemcpyDeviceToHost);

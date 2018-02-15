@@ -22,8 +22,11 @@ __global__ void cumulative_sum(int *a, int *b) {
     }
     
     if(threadIdx.x == 0) {
-        b[blockIdx.x] = a[start_address + blockDim.x];
+	//printf("block dim is %d\n", blockDim.x);
+        b[blockIdx.x] = a[start_address + 2*blockDim.x-1];
+	printf("%d\n", b[blockIdx.x]);
     }
+
 }
 
 __global__ void fix_sum(int *a, int *b, int size_per_block) {
@@ -38,8 +41,10 @@ int main() {
     
     int SIZE = 32;
 	int *device_input;
+	int *device_output;
 	int *host_input = (int *) malloc(SIZE * sizeof(int));
     int *host_output = (int *) malloc(SIZE * sizeof(int));
+    int *host_output_b = (int *) malloc(SIZE * sizeof(int));
     int threads_per_block = 16;
     int size_per_block = 2 * threads_per_block;
     int num_blocks = (SIZE + size_per_block - 1) / size_per_block;
@@ -48,6 +53,7 @@ int main() {
 
 
 	cudaMalloc(&device_input, SIZE * sizeof(int));
+	cudaMalloc(&device_output, num_blocks * sizeof(int));
 
 	for(int i = 0; i < SIZE; i++) {
 		host_input[i] = 1;
@@ -56,9 +62,10 @@ int main() {
     cudaMemcpy(device_input, host_input, SIZE * sizeof(int), cudaMemcpyHostToDevice);
 
 	gstart();
-	cumulative_sum<<<num_blocks, threads_per_block>>>(device_input);
+	cumulative_sum<<<num_blocks, threads_per_block>>>(device_input, device_output);
 
 	cudaMemcpy(host_output, device_input, SIZE * sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(host_output_b, device_output, num_blocks * sizeof(int), cudaMemcpyDeviceToHost);
 	gend(&time);
 
 	printf("it took %f seconds\n", time);
@@ -70,6 +77,12 @@ int main() {
 	/*	int correct = (i * (i + 1)) / 2;
 		if(a_host[i] != correct) 
 			printf("Error at pos: %d expected: %d actual: %d\n", i, correct, a_host[i]); */
+	}
+    printf("\n");
+	
+	for(int i = 0; i < num_blocks; i++)
+	{
+		printf("%d ", host_output_b[i]);
 	}
     printf("\n");
     

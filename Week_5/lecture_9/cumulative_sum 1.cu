@@ -41,7 +41,7 @@ __global__ void sum_subtotals(int *b, int num_blocks) {
 		b[i] += b[i-1];
 	}
 }
- 
+
 //printf("%d ", a[id]);
   
 
